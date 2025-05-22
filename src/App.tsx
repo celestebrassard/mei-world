@@ -20,13 +20,14 @@ const Logo = styled.img`
 `;
 
 const Title = styled.h1`
-  font-family: "Avenir", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  font-weight: bold;
+  font-family: "Inter", sans-serif;
+  font-weight: 600;
   color: #FFB6C1;
   font-size: 48px;
   margin-top: 0;
   margin-bottom: 20px;
   text-transform: uppercase;
+  letter-spacing: -4px;
 `;
 
 const CameraContainer = styled.div`
@@ -300,7 +301,7 @@ const App: React.FC = () => {
   return (
     <Container>
       <Logo src="/logo.jpg" alt="MEI Logo" />
-      <Title>MEI</Title>
+      <Title>MEI BOOTH</Title>
       <CameraContainer>
         <Video
           ref={videoRef}
