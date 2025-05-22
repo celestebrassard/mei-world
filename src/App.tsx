@@ -9,6 +9,14 @@ const Container = styled.div`
   min-height: 100vh;
   padding: 20px;
   font-family: "Avenir", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  background-color: white;
+`;
+
+const Logo = styled.img`
+  width: 80px;
+  height: auto;
+  margin-bottom: 0;
+  padding-top: 40px;
 `;
 
 const Title = styled.h1`
@@ -16,8 +24,9 @@ const Title = styled.h1`
   font-weight: bold;
   color: #FFB6C1;
   font-size: 48px;
+  margin-top: 0;
   margin-bottom: 20px;
-  text-transform: lowercase;
+  text-transform: uppercase;
 `;
 
 const CameraContainer = styled.div`
@@ -290,7 +299,8 @@ const App: React.FC = () => {
 
   return (
     <Container>
-      <Title>mei</Title>
+      <Logo src="/logo.jpg" alt="MEI Logo" />
+      <Title>MEI</Title>
       <CameraContainer>
         <Video
           ref={videoRef}
