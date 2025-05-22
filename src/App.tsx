@@ -70,22 +70,6 @@ const Countdown = styled.div`
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
 `;
 
-const PhotoGrid = styled.div<{ isGrid: boolean }>`
-  display: grid;
-  grid-template-columns: ${props => props.isGrid ? 'repeat(2, 1fr)' : '1fr'};
-  gap: 2px;
-  width: 100%;
-  max-width: 1280px;
-  margin: 20px 0;
-  background-color: #000;
-`;
-
-const Photo = styled.img`
-  width: 100%;
-  height: auto;
-  display: block;
-`;
-
 const Gallery = styled.div`
   display: flex;
   flex-direction: column;
@@ -93,6 +77,26 @@ const Gallery = styled.div`
   width: 100%;
   max-width: 640px;
   margin-top: 20px;
+`;
+
+const PhotoGrid = styled.div<{ isGrid: boolean }>`
+  display: grid;
+  grid-template-columns: ${props => props.isGrid ? 'repeat(2, 1fr)' : '1fr'};
+  gap: 2px;
+  width: 100%;
+  max-width: 640px;
+  margin: 20px 0;
+  background-color: #000;
+  aspect-ratio: ${props => props.isGrid ? '4/3' : 'auto'};
+  overflow: hidden;
+`;
+
+const Photo = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  aspect-ratio: 4/3;
 `;
 
 interface ModeButtonProps {
@@ -126,12 +130,13 @@ const Flash = styled.div`
 
 const App: React.FC = () => {
   const [isCountingDown, setIsCountingDown] = useState(false);
-  const [count, setCount] = useState(3);
+  const [count, setCount] = useState(4);
   const [isGridMode, setIsGridMode] = useState(false);
   const [photos, setPhotos] = useState<PhotoData[]>([]);
   const [photosToTake, setPhotosToTake] = useState(1);
   const [tempPhotos, setTempPhotos] = useState<string[]>([]);
   const [showFlash, setShowFlash] = useState(false);
+  const [showTempGrid, setShowTempGrid] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -153,7 +158,7 @@ const App: React.FC = () => {
 
   const startCountdown = () => {
     setIsCountingDown(true);
-    setCount(3);
+    setCount(4);
   };
 
   const createGridImage = (photoUrls: string[]) => {
@@ -162,8 +167,8 @@ const App: React.FC = () => {
     if (!ctx) return;
 
     // Set canvas size for 2x2 grid
-    canvas.width = 1280;  // 640 * 2
-    canvas.height = 720;  // 360 * 2
+    canvas.width = 640;  // 320 * 2
+    canvas.height = 480;  // 240 * 2
 
     // Create temporary images to load the photos
     const loadImage = (url: string): Promise<HTMLImageElement> => {
@@ -180,9 +185,9 @@ const App: React.FC = () => {
       .then(images => {
         // Draw each image in its grid position
         images.forEach((img, index) => {
-          const x = (index % 2) * 640;
-          const y = Math.floor(index / 2) * 360;
-          ctx.drawImage(img, x, y, 640, 360);
+          const x = (index % 2) * 320;
+          const y = Math.floor(index / 2) * 240;
+          ctx.drawImage(img, x, y, 320, 240);
         });
 
         // Convert to data URL and save
@@ -193,6 +198,7 @@ const App: React.FC = () => {
           timestamp: new Date().toISOString()
         };
         setPhotos(prev => [...prev, newPhoto]);
+        setTempPhotos([]); // Clear temp photos after creating grid
       });
   };
 
@@ -205,16 +211,28 @@ const App: React.FC = () => {
       if (ctx) {
         ctx.drawImage(videoRef.current, 0, 0);
         const imageUrl = canvas.toDataURL('image/png');
+        console.log('Photo taken:', imageUrl.substring(0, 50) + '...');
         
         if (isGridMode) {
-          setTempPhotos(prev => [...prev, imageUrl]);
+          setTempPhotos(prev => {
+            const newPhotos = [...prev, imageUrl];
+            console.log('Temp photos count:', newPhotos.length);
+            if (newPhotos.length === 4) {
+              setShowTempGrid(true);
+            }
+            return newPhotos;
+          });
         } else {
           const newPhoto = {
             id: Date.now().toString(),
             url: imageUrl,
             timestamp: new Date().toISOString()
           };
-          setPhotos(prev => [...prev, newPhoto]);
+          setPhotos(prev => {
+            const newPhotos = [...prev, newPhoto];
+            console.log('Photos count:', newPhotos.length);
+            return newPhotos;
+          });
         }
       }
     }
@@ -238,11 +256,10 @@ const App: React.FC = () => {
       takePhoto();
       if (isGridMode && photosToTake < 4) {
         setPhotosToTake(prev => prev + 1);
-        setCount(3);
+        setCount(4);
       } else {
         if (isGridMode && tempPhotos.length === 4) {
           createGridImage(tempPhotos);
-          setTempPhotos([]);
         }
         setIsCountingDown(false);
         setPhotosToTake(1);
@@ -297,10 +314,23 @@ const App: React.FC = () => {
           4 Photo Grid
         </ModeButton>
       </div>
+      {showTempGrid && tempPhotos.length === 4 && (
+        <Gallery>
+          <PhotoGrid isGrid={true}>
+            {tempPhotos.map((photo, index) => (
+              <Photo
+                key={index}
+                src={photo}
+                alt={`Grid Photo ${index + 1}`}
+              />
+            ))}
+          </PhotoGrid>
+        </Gallery>
+      )}
       {photos.length > 0 && (
         <Gallery>
           <PhotoGrid isGrid={isGridMode}>
-            {photos.slice(-4).map((photo, index) => (
+            {photos.map((photo, index) => (
               <Photo
                 key={photo.id}
                 src={photo.url}
