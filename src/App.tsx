@@ -29,33 +29,32 @@ const CameraContainer = styled.div`
 
 const Video = styled.video`
   width: 100%;
-  border-radius: 10px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border-radius: 0;
 `;
 
 const Button = styled.button`
   background-color: white;
-  color: #FFB6C1;
-  padding: 15px 32px;
+  color: #666666;
+  padding: 10px 20px;
   text-align: center;
   text-decoration: none;
   display: inline-block;
-  font-size: 16px;
+  font-size: 14px;
   margin: 4px 2px;
   cursor: pointer;
-  border: 2px solid #FFB6C1;
-  border-radius: 5px;
+  border: 1px solid #666666;
+  border-radius: 4px;
   transition: all 0.3s;
-  font-family: "Avenir", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: "Anonymous Pro", monospace;
 
   &:hover {
-    background-color: #FFB6C1;
+    background-color: #666666;
     color: white;
   }
 
   &:disabled {
-    background-color: #ffd6de;
-    border-color: #ffd6de;
+    background-color: #cccccc;
+    border-color: #cccccc;
     color: white;
     cursor: not-allowed;
   }
@@ -68,23 +67,23 @@ const Countdown = styled.div`
   transform: translate(-50%, -50%);
   font-size: 120px;
   color: white;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-  font-family: "Avenir", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
 `;
 
 const PhotoGrid = styled.div<{ isGrid: boolean }>`
   display: grid;
   grid-template-columns: ${props => props.isGrid ? 'repeat(2, 1fr)' : '1fr'};
-  gap: 10px;
+  gap: 2px;
   width: 100%;
-  max-width: 640px;
+  max-width: 1280px;
   margin: 20px 0;
+  background-color: #000;
 `;
 
 const Photo = styled.img`
   width: 100%;
-  border-radius: 10px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  height: auto;
+  display: block;
 `;
 
 const Gallery = styled.div`
@@ -101,8 +100,8 @@ interface ModeButtonProps {
 }
 
 const ModeButton = styled(Button)<ModeButtonProps>`
-  background-color: ${props => props.active ? '#FFB6C1' : 'white'};
-  color: ${props => props.active ? 'white' : '#FFB6C1'};
+  background-color: ${props => props.active ? '#666666' : 'white'};
+  color: ${props => props.active ? 'white' : '#666666'};
   margin: 0 5px;
 `;
 
@@ -112,11 +111,27 @@ interface PhotoData {
   timestamp: string;
 }
 
+const Flash = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: white;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease-out;
+  z-index: 1000;
+`;
+
 const App: React.FC = () => {
   const [isCountingDown, setIsCountingDown] = useState(false);
   const [count, setCount] = useState(3);
   const [isGridMode, setIsGridMode] = useState(false);
   const [photos, setPhotos] = useState<PhotoData[]>([]);
+  const [photosToTake, setPhotosToTake] = useState(1);
+  const [tempPhotos, setTempPhotos] = useState<string[]>([]);
+  const [showFlash, setShowFlash] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -141,20 +156,45 @@ const App: React.FC = () => {
     setCount(3);
   };
 
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (isCountingDown && count > 0) {
-      timer = setTimeout(() => {
-        setCount(count - 1);
-      }, 1000);
-    } else if (isCountingDown && count === 0) {
-      takePhoto();
-      setIsCountingDown(false);
-    }
-    return () => {
-      if (timer) clearTimeout(timer);
+  const createGridImage = (photoUrls: string[]) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Set canvas size for 2x2 grid
+    canvas.width = 1280;  // 640 * 2
+    canvas.height = 720;  // 360 * 2
+
+    // Create temporary images to load the photos
+    const loadImage = (url: string): Promise<HTMLImageElement> => {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = url;
+      });
     };
-  }, [isCountingDown, count]);
+
+    // Load all images and draw them in a grid
+    Promise.all(photoUrls.map(loadImage))
+      .then(images => {
+        // Draw each image in its grid position
+        images.forEach((img, index) => {
+          const x = (index % 2) * 640;
+          const y = Math.floor(index / 2) * 360;
+          ctx.drawImage(img, x, y, 640, 360);
+        });
+
+        // Convert to data URL and save
+        const gridImageUrl = canvas.toDataURL('image/png');
+        const newPhoto = {
+          id: Date.now().toString(),
+          url: gridImageUrl,
+          timestamp: new Date().toISOString()
+        };
+        setPhotos(prev => [...prev, newPhoto]);
+      });
+  };
 
   const takePhoto = () => {
     if (videoRef.current) {
@@ -165,15 +205,53 @@ const App: React.FC = () => {
       if (ctx) {
         ctx.drawImage(videoRef.current, 0, 0);
         const imageUrl = canvas.toDataURL('image/png');
-        const newPhoto = {
-          id: Date.now().toString(),
-          url: imageUrl,
-          timestamp: new Date().toISOString()
-        };
-        setPhotos(prev => [...prev, newPhoto]);
+        
+        if (isGridMode) {
+          setTempPhotos(prev => [...prev, imageUrl]);
+        } else {
+          const newPhoto = {
+            id: Date.now().toString(),
+            url: imageUrl,
+            timestamp: new Date().toISOString()
+          };
+          setPhotos(prev => [...prev, newPhoto]);
+        }
       }
     }
   };
+
+  const triggerFlash = () => {
+    setShowFlash(true);
+    setTimeout(() => {
+      setShowFlash(false);
+    }, 300);
+  };
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (isCountingDown && count > 0) {
+      timer = setTimeout(() => {
+        setCount(count - 1);
+      }, 1000);
+    } else if (isCountingDown && count === 0) {
+      triggerFlash();
+      takePhoto();
+      if (isGridMode && photosToTake < 4) {
+        setPhotosToTake(prev => prev + 1);
+        setCount(3);
+      } else {
+        if (isGridMode && tempPhotos.length === 4) {
+          createGridImage(tempPhotos);
+          setTempPhotos([]);
+        }
+        setIsCountingDown(false);
+        setPhotosToTake(1);
+      }
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [isCountingDown, count, isGridMode, photosToTake, tempPhotos]);
 
   const downloadPhoto = (photo: PhotoData) => {
     const link = document.createElement('a');
@@ -188,6 +266,8 @@ const App: React.FC = () => {
 
   const handleModeChange = (isGrid: boolean) => {
     setIsGridMode(isGrid);
+    setPhotosToTake(1);
+    setTempPhotos([]);
     startCountdown();
   };
 
@@ -235,6 +315,7 @@ const App: React.FC = () => {
           </Button>
         </Gallery>
       )}
+      <Flash style={{ opacity: showFlash ? 1 : 0 }} />
     </Container>
   );
 };
