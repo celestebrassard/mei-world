@@ -16,18 +16,17 @@ const Logo = styled.img`
   width: 80px;
   height: auto;
   margin-bottom: 0;
-  padding-top: 40px;
 `;
 
 const Title = styled.h1`
-  font-family: "Inter", sans-serif;
-  font-weight: 600;
-  color: #FFB6C1;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-weight: 700;
+  color: #FFE2E2;
   font-size: 48px;
   margin-top: 0;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
   text-transform: uppercase;
-  letter-spacing: -4px;
+  letter-spacing: -2.4px;
 `;
 
 const CameraContainer = styled.div`
@@ -228,7 +227,7 @@ const App: React.FC = () => {
             const newPhotos = [...prev, imageUrl];
             console.log('Temp photos count:', newPhotos.length);
             if (newPhotos.length === 4) {
-              setShowTempGrid(true);
+              createGridImage(newPhotos);
             }
             return newPhotos;
           });
@@ -309,7 +308,7 @@ const App: React.FC = () => {
           playsInline
           muted
         />
-        {isCountingDown && <Countdown>{count}</Countdown>}
+        {isCountingDown && count > 0 && <Countdown>{count}</Countdown>}
       </CameraContainer>
       <div>
         <ModeButton
